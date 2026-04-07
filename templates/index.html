@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Amigo</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="chat-container">
+        <h1>Chat Amigo</h1>
+        <p class="subtitle">Un chat básico en localhost con Python, Flask y OpenAI</p>
+
+        <div id="chat-box" class="chat-box"></div>
+
+        <div class="input-area">
+            <input
+                type="text"
+                id="userInput"
+                placeholder="Escribe tu mensaje..."
+                onkeypress="handleKeyPress(event)"
+            >
+            <button onclick="sendMessage()">Enviar</button>
+        </div>
+    </div>
+
+    <script>
+        async function sendMessage() {
+            const input = document.getElementById("userInput");
+            const chatBox = document.getElementById("chat-box");
+            const message = input.value.trim();
+
+            if (!message) return;
+
+            chatBox.innerHTML += `
+                <div class="message user-message">
+                    <strong>Tú:</strong> ${escapeHtml(message)}
+                </div>
+            `;
+
+            input.value = "";
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            try {
+                const response = await fetch("/chat", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+
+                const data = await response.json();
+
+                chatBox.innerHTML += `
+                    <div class="message bot-message">
+                        <strong>Amigo:</strong> ${escapeHtml(data.reply)}
+                    </div>
+                `;
+            } catch (error) {
+                chatBox.innerHTML += `
+                    <div class="message bot-message">
+                        <strong>Amigo:</strong> Ocurrió un error al conectar con el servidor.
+                    </div>
+                `;
+            }
+
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === "Enter") {
+                sendMessage();
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement("div");
+            div.innerText = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

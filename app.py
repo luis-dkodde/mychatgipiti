@@ -1,63 +1,50 @@
 import os
+from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
 from openai import OpenAI
 
 load_dotenv()
 
-api_key = os.getenv("OPENAI_API_KEY")
+app = Flask(__name__)
 
+api_key = os.getenv("OPENAI_API_KEY")
 if not api_key:
-    raise ValueError("No se encontró OPENAI_API_KEY. Revisa tu archivo .env")
+    raise ValueError("No se encontró la variable OPENAI_API_KEY en el archivo .env")
 
 client = OpenAI(api_key=api_key)
 
 SYSTEM_PROMPT = """
-Quiero que actúes como un amigo cercano, amable y conversador.
-Habla de forma natural, cálida y sencilla.
-Da respuestas útiles, cortas a moderadas, y mantén un tono amistoso.
-Si no sabes algo, dilo con honestidad.
+Actúa como un amigo cercano, amable, conversador y respetuoso.
+Responde de manera natural, cálida y sencilla.
+Mantén un tono humano y agradable.
+Responde en el mismo idioma del usuario.
 """
 
-def main():
-    print("Chat Amigo desde Consola")
-    print("Escribe 'salir' para terminar.\n")
+@app.route("/")
+def home():
+    return render_template("index.html")
 
-    conversation = [
-        {
-            "role": "system",
-            "content": SYSTEM_PROMPT
-        }
-    ]
+@app.route("/chat", methods=["POST"])
+def chat():
+    data = request.get_json()
+    user_message = data.get("message", "").strip()
 
-    while True:
-        user_input = input("Tú: ")
+    if not user_message:
+        return jsonify({"reply": "No recibí ningún mensaje."}), 400
 
-        if user_input.lower().strip() == "salir":
-            print("Amigo: ¡Nos vemos! Que estés muy bien.")
-            break
+    try:
+        response = client.responses.create(
+            model="gpt-4.1-mini",
+            input=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_message}
+            ]
+        )
 
-        conversation.append({
-            "role": "user",
-            "content": user_input
-        })
+        return jsonify({"reply": response.output_text})
 
-        try:
-            response = client.responses.create(
-                model="gpt-5.4",
-                input=conversation
-            )
-
-            assistant_text = response.output_text
-
-            print(f"Amigo: {assistant_text}\n")
-
-            conversation.append({
-                "role": "assistant",
-                "content": assistant_text
-            })
-
-        except Exception as e:
-            print(f"Ocurrió un error: {e}")
+    except Exception as e:
+        return jsonify({"reply": f"Ocurrió un error: {str(e)}"}), 500
 
 if __name__ == "__main__":
-    main()
+    app.run(debug=True)
